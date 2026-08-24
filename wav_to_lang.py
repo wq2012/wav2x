@@ -33,11 +33,32 @@ class WavToLangRunner:
   def wav_to_lang(self, audio_file: str) -> tuple[str, np.ndarray]:
     """Run lang-id model on wav file."""
     input_signal = fe_utils.get_int_samples(audio_file)
-    return self.samples_to_lang(input_signal)
+    probs = self.samples_to_lang(input_signal)
+    # Take the last frame's prediction
+    last_frame = probs[-1]
+    # last_frame shape is (batch_size, num_classes). 
+    # We want class with highest score in the last batch (or average).
+    # Assuming batch_size=1 for simplicity in logic matching original.
+    top_class = int(np.argmax(last_frame)) 
+    # If flattened argmax is > num_classes, it means we have batch>1.
+    # We should average or take first? 
+    # Let's take the first element of the batch if batch>1.
+    if len(last_frame.shape) > 1 and last_frame.shape[0] > 1:
+        top_class = int(np.argmax(last_frame[0]))
+    elif len(last_frame.shape) > 1:
+        top_class = int(np.argmax(last_frame))
+        
+    try:
+      language_code = language_map.ID_TO_LANG[top_class]
+    except KeyError:
+      print(f"ERROR: top_class {top_class} not in language_map! raw_output_last={last_frame}")
+      raise
+    
+    return language_code, probs
 
   @colortimelog.timefunc
-  def samples_to_lang(self, input_signal: np.ndarray) -> tuple[str, np.ndarray]:
-    """Run lang-id model on int16 samples."""
+  def samples_to_lang(self, input_signal: np.ndarray) -> np.ndarray:
+    """Computes probabilities (or logits) for languages."""
     features_batch = self.feature_extractor.extract(input_signal)
     features = features_batch[0]
 

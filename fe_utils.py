@@ -63,8 +63,8 @@ class LogMelFeatureExtractor:
             frame_length=self.frame_length,
             frame_step=self.frame_step,
             fft_length=self.fft_length,
-            window_fn=tf.signal.hann_window,
-            pad_end=False
+            window_fn=lambda x, dtype: tf.signal.hann_window(x, periodic=False, dtype=dtype),
+            pad_end=True
         )
         spectrograms = tf.abs(stfts)
         
@@ -121,14 +121,8 @@ def read_mean_stddev_csv(csv_file: str) -> tuple[np.ndarray, np.ndarray]:
 
 @colortimelog.timefunc
 def get_int_samples(file_name: str) -> np.ndarray:
-  with open(file_name, "rb") as f:
-    sample_rate, int_samples = wavfile.read(f)
-
-  if sample_rate != 16000:
-    samples = int_samples / 32768.0
-    samples = librosa.resample(samples, orig_sr=sample_rate, target_sr=16000)
-    int_samples = (samples * 32768.0).astype(np.int16)
-
+  samples, _ = librosa.load(file_name, sr=16000, mono=True)
+  int_samples = np.clip(samples * 32768.0, -32768, 32767).astype(np.int16)
   return np.expand_dims(int_samples, axis=0)
 
 
@@ -209,6 +203,7 @@ def apply_vad(
   vad_decisions = np.array(vad_decisions)
 
   features_after_vad = features[vad_decisions, :]
+  print(f"VAD retained {len(features_after_vad)}/{len(features)} frames ({len(features_after_vad)/len(features)*100:.1f}%)")
   return vad_decisions, features_after_vad
 
 

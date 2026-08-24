@@ -8,11 +8,14 @@ import colortimelog
 
 def aggregate_dvectors(dvectors: list[np.ndarray]) -> np.ndarray:
   """Aggregate dvectors from multiple utterances."""
-  normalized_dvectors = [
-      dvector / np.linalg.norm(dvector) for dvector in dvectors
-  ]
-  stacked_dvectors = np.stack(normalized_dvectors, axis=0)
-  return np.mean(stacked_dvectors, axis=0, keepdims=False)
+  # Aggregate
+  dvector = np.mean(dvectors, axis=0)
+  # Center d-vector to remove channel bias
+  dvector = dvector - np.mean(dvector)
+  
+  # Normalize
+  dvector = dvector / (np.linalg.norm(dvector) + 1e-6)
+  return dvector
 
 
 def compute_cosine(vec1: np.ndarray, vec2: np.ndarray) -> float:
@@ -62,14 +65,12 @@ class WavToDvectorRunner:
     features = features_batch[0]
     
     self.vad_model.reset_all_variables()
+    self.vad_model.reset_all_variables()
     _, features_after_vad = fe_utils.apply_vad(
-        features,
-        self.vad_model,
-        self.vad_mean_stddev,
-        self.vad_threshold,
-        self.vad_cluster_id,
-        self.vad_num_clusters,
+        features, self.vad_model, self.vad_mean_stddev, self.vad_threshold
     )
+    # Note: dvector model seems to expect unnormalized features in this pipeline version
+    
     self.tisid_model.reset_all_variables()
     dvectors = fe_utils.run_multi_input_model(
         self.tisid_model, features_after_vad
