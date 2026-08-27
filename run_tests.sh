@@ -4,12 +4,17 @@ set -o errexit
 # Get project path.
 PROJECT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+pushd ${PROJECT_PATH}
+
+# If local virtualenv exists and none is activated, use it.
+if [ -d ".venv" ] && [ -z "${VIRTUAL_ENV}" ]; then
+    source .venv/bin/activate
+fi
+
 # Add project modules to PYTHONPATH.
 if [[ "${PYTHONPATH}" != *"${PROJECT_PATH}"* ]]; then
     export PYTHONPATH="${PYTHONPATH}:${PROJECT_PATH}"
 fi
-
-pushd ${PROJECT_PATH}
 
 rm -f .coverage
 
