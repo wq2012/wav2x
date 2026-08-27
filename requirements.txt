@@ -1,0 +1,7 @@
+tensorflow
+numpy
+scipy
+soundfile
+librosa
+colortimelog
+huggingface_hub
